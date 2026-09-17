@@ -1,0 +1,50 @@
+---
+description: JWT authentication — protect all routes except login and register
+alwaysApply: true
+---
+# JWT Authentication
+
+Every route must require a valid JWT **except** `POST /auth/login` and `POST /auth/register`.
+
+## Default: Global Guard
+
+Register a global `JwtAuthGuard` via `APP_GUARD` in `AppModule`. New controllers and endpoints are protected automatically — do not rely on per-controller `@UseGuards()` unless overriding the default.
+
+## Public Routes
+
+Only login and register are public. Mark them with a `@Public()` decorator (or equivalent metadata) that the global guard respects:
+
+```typescript
+@Public()
+@Post('login')
+login(@Body() loginDto: LoginDto) { ... }
+
+@Public()
+@Post('register')
+register(@Body() registerDto: RegisterDto) { ... }
+```
+
+Do not add `@Public()` to any other endpoint without explicit user approval.
+
+## Token Contract
+
+- **Header:** `Authorization: Bearer <token>`
+- **Payload:** `{ sub: userId }` (matches `auth.service.ts` sign options)
+- **Secret:** `JWT_SECRET` from config (same as `JwtModule` in `AuthModule`)
+- **Invalid or missing token:** respond with `401 Unauthorized`
+
+## Auth Infrastructure
+
+Keep JWT strategy, guard, and `@Public()` decorator in `src/auth/`. Export the guard from `AuthModule` for use as `APP_GUARD`.
+
+When adding feature modules (see `modules.mdc`), no extra auth wiring is needed — the global guard applies.
+
+JWT proves **who** the caller is. Resource isolation (this user vs another user's contract) is `saas-api.mdc` — pass `@CurrentUser()` into private-resource services.
+
+## Checklist
+
+When touching controllers or adding endpoints:
+
+- [ ] Endpoint is protected by default (no `@Public()` unless login/register)
+- [ ] Private-resource services take `user.sub` from the validated JWT — never from the body
+- [ ] E2E and integration tests send a Bearer token for protected routes

@@ -1,0 +1,44 @@
+---
+description: SaaS isolation — public catalogs vs private owner-scoped resources on every route
+alwaysApply: true
+---
+# SaaS API Isolation
+
+This API is multi-tenant. Every route must type inputs, reject bad nulls, check ownership, and verify related data.
+
+## Public catalogs (no owner FK)
+
+- `Class`, `Institution` — authenticated CRUD
+- `PricingMode`, `Status` — GET only
+
+Do **not** add `teacherId` / `userId` to these models.
+
+## Private resources (exactly one owner)
+
+| Resource | Owner |
+|----------|--------|
+| `Contract` | `teacherId` (do **not** add `fk_user_id`) |
+| `Session` | `teacherId` (keep even if `contractId` exists — contract is optional) |
+| `Invoice` | `teacherId` |
+| `User` | row `id === jwt.sub` |
+
+Owner is always `request.user.sub`. Never accept owner IDs from the body.
+
+```typescript
+// ❌ BAD — client chooses the owner
+create(@Body() dto: CreateContractDto) { ... dto.teacherId }
+
+// ✅ GOOD — JWT is the owner
+create(@Body() dto: CreateContractDto, @CurrentUser() user: JwtPayload) {
+  return this.contractsService.create(dto, user.sub);
+}
+```
+
+## Every-route checklist
+
+1. **Typing** — DTO + `class-validator` + `@Type()`; `ValidationPipe({ transform: true })`; path `ParseIntPipe`; query DTOs
+2. **Nulls** — required fields: `null`/`undefined` → 400; optional: `null` stores SQL NULL; never null the owner from the client
+3. **Permissions** — private reads/writes scoped with `teacherId` / `id === sub`. Other user's resource → **404**. Linking a private FK owned by someone else (e.g. `contractId` of user 30) → **403**
+4. **Data** — public FKs must exist; private FKs must exist **and** belong to `sub`
+
+Current role is **Intervenant** only. No admin bypass. Do not implement extra roles unless asked.

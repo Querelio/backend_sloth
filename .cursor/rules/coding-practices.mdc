@@ -1,0 +1,35 @@
+---
+alwaysApply: true
+---
+# Coding Practices
+
+General standards for all code in this backend.
+
+## TypeScript
+
+- Write all code in TypeScript — no plain JavaScript files.
+- Prefer explicit types on public APIs (service methods, DTOs, controller return types).
+- Avoid `any`; use `unknown` and narrow when the type is uncertain.
+
+## NestJS
+
+- Follow NestJS module / controller / service patterns.
+- Keep controllers thin; business logic belongs in services.
+- Use dependency injection — never instantiate services or repositories manually in feature code.
+- Load env with `ConfigModule.forRoot({ isGlobal: true })` in `AppModule` — not in feature modules.
+- Enable CORS in `main.ts` from `CORS_ORIGIN` (comma-separated frontend origins). The SPA is a different origin; do not assume same-origin or a reverse proxy.
+- Do not add a global `/api` prefix. This process *is* the API; routes stay at `/auth`, `/users`, etc.
+- Do not serve the React build from NestJS. Do not add Docker or nginx for this app.
+- See `api-conventions.mdc` for REST endpoint rules.
+- See `saas-api.mdc` for public vs private resources, null handling, and ownership on every route.
+
+## Prisma
+
+- Use Prisma for all database access — see `db-interactions.mdc`.
+- Inject `PrismaService`; do not create Prisma clients in feature modules.
+
+## Production-Ready Code
+
+- Ship code that is safe to run in production — no temporary debug logs, commented-out blocks, or dev-only shortcuts left behind.
+- Do not leave `console.log` for debugging; use NestJS `Logger` when logging is intentional.
+- Handle errors explicitly; do not swallow exceptions silently.

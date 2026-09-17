@@ -1,0 +1,135 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// System catalog — not a tenant resource. Only Intervenant is seeded for now.
+model Role {
+  id    Int    @id @default(autoincrement()) @map("role_id")
+  name  String
+  users User[]
+
+  @@map("Roles")
+}
+
+/// Private — the row is the user (`id` must equal jwt.sub).
+model User {
+  id        Int        @id @default(autoincrement()) @map("user_id")
+  email     String     @unique
+  password  String
+  roleId    Int        @map("fk_role_id")
+  firstName String     @map("first_name")
+  lastName  String     @map("last_name")
+  sessions  Session[]
+  contracts Contract[]
+  invoices  Invoice[]
+  role      Role       @relation(fields: [roleId], references: [id])
+
+  @@map("Users")
+}
+
+/// Public catalog — no owner. Shared across all users.
+model Institution {
+  id                  Int        @id @default(autoincrement()) @map("institution_id")
+  name                String
+  address             String
+  color               String     @default("#3B82F6")
+  requiresDeclaration Boolean    @default(false) @map("requires_declaration")
+  classes             Class[]
+  contracts           Contract[]
+
+  @@map("Institutions")
+}
+
+/// Public catalog — no owner. Shared across all users.
+model Class {
+  id            Int         @id @default(autoincrement()) @map("class_id")
+  institutionId Int         @map("fk_institution_id")
+  classLevel    String      @map("class_level")
+  studentCount  Int         @map("student_count")
+  name          String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  sessions      Session[]
+
+  @@map("Classes")
+}
+
+/// Public catalog — GET only. No owner.
+model PricingMode {
+  id        Int        @id @default(autoincrement()) @map("pricing_mode_id")
+  name      String
+  contracts Contract[]
+
+  @@map("Pricing_Modes")
+}
+
+/// Private — owned by teacherId. Do not add a second user FK.
+model Contract {
+  id                  Int         @id @default(autoincrement()) @map("contract_id")
+  institutionId       Int         @map("fk_institution_id")
+  pricingModeId       Int         @map("fk_pricing_mode_id")
+  contractNumber      String      @map("contract_number")
+  startDate           DateTime    @map("start_date") @db.Date
+  endDate             DateTime    @map("end_date") @db.Date
+  hourlyVolumePlanned Decimal     @map("hourly_volume_planned") @db.Decimal(10, 2)
+  unitPrice           Decimal     @map("unit_price") @db.Decimal(10, 2)
+  teacherId           Int         @map("fk_teacher_id")
+  institution         Institution @relation(fields: [institutionId], references: [id])
+  pricingMode         PricingMode @relation(fields: [pricingModeId], references: [id])
+  teacher             User        @relation(fields: [teacherId], references: [id])
+  sessions            Session[]
+
+  @@map("Contracts")
+}
+
+/// Public catalog — GET only. No owner.
+model Status {
+  id       Int       @id @default(autoincrement()) @map("status_id")
+  name     String
+  sessions Session[]
+
+  @@map("Status")
+}
+
+/// Private — owned by teacherId.
+model Invoice {
+  id            Int       @id @default(autoincrement()) @map("invoice_id")
+  invoiceNumber String    @map("invoice_number")
+  invoiceDate   DateTime  @map("invoice_date") @db.Date
+  paymentDate   DateTime? @map("payment_date") @db.Date
+  status        String
+  teacherId     Int       @map("fk_teacher_id")
+  sessions      Session[]
+  teacher       User      @relation(fields: [teacherId], references: [id])
+
+  @@map("Invoices")
+}
+
+/// Private — owned by teacherId (required even when contractId is set; contract is optional).
+model Session {
+  id                   Int          @id @default(autoincrement()) @map("session_id")
+  subject              String?
+  classId              Int?         @map("fk_class_id")
+  title                String       @map("title")
+  contractId           Int?         @map("fk_contract_id")
+  statusId             Int          @default(1) @map("fk_status_id")
+  teacherId            Int          @map("fk_teacher_id")
+  invoiceId            Int?         @map("fk_invoice_id")
+  date                 DateTime     @db.Date
+  start                DateTime     @db.Time(6)
+  end                  DateTime     @db.Time(6)
+  declarationReference String?      @map("declaration_reference")
+  declarationDate      DateTime?    @map("declaration_date") @db.Date
+  class                Class?       @relation(fields: [classId], references: [id])
+  contract             Contract?    @relation(fields: [contractId], references: [id])
+  invoice              Invoice?     @relation(fields: [invoiceId], references: [id])
+  statusRelation       Status       @relation(fields: [statusId], references: [id])
+  teacher              User         @relation(fields: [teacherId], references: [id])
+
+  @@map("Sessions")
+}

@@ -1,0 +1,35 @@
+---
+alwaysApply: true
+---
+# NestJS Modules
+
+When a new feature module is needed, do not scaffold it manually.
+
+## Creating a Module
+
+**Never** create module files by hand (controller, service, module, DTOs, spec files).
+
+Instead, ask the user to run the NestJS CLI from the project root:
+
+```bash
+nest g res <module-name>
+```
+
+When prompted:
+- **REST API** — yes
+- **CRUD entry points** — yes
+
+The user runs the command; you then adapt the generated code (Prisma integration, DTOs, business logic).
+
+## After Generation
+
+- Register the new module in `AppModule` if the CLI did not do it automatically.
+- Import `PrismaModule` in feature modules that need database access.
+- Replace placeholder CRUD logic with real Prisma calls — see `db-interactions.mdc`.
+- Align endpoints with `api-conventions.mdc`.
+- Controllers are JWT-protected by default — see `auth.mdc` (only `/auth/login` and `/auth/register` are public).
+- Apply `saas-api.mdc` on every generated route: DTO typing, null handling, owner scope, related-data checks. `PricingMode` / `Status` stay GET only.
+
+## Exceptions
+
+Manual module creation is allowed only for infrastructure modules (e.g. `PrismaModule`) that are not REST resources.

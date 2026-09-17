@@ -1,0 +1,57 @@
+---
+alwaysApply: true
+---
+# REST API Conventions
+
+Follow NestJS conventions and standard REST practices.
+
+## HTTP Methods
+
+- GET → retrieve (no side effects)
+- POST → create
+- PATCH → partial update
+- PUT → full update
+- DELETE → remove
+
+Never use POST for everything. Refactor misuse to the correct method.
+
+## URL Design
+
+- Resources are **nouns**, plural: `/users`, `/users/:id`
+- Never action-based routes: `/getUsers`, `/deleteUser`, `/updateUser`
+
+## Parameters
+
+| Location | Use for |
+|----------|---------|
+| Path (`:id`) | Identifying one resource |
+| Query (`?`) | Filtering, search, pagination |
+| Body | POST creation data, PATCH/PUT update data only |
+
+Forbidden:
+- DELETE or GET with a body
+- IDs in body when they belong in the URL (`DELETE /users/1`, not `DELETE /users { id: 1 }`)
+
+Decorators: `@Param()` for path, `@Query()` for query, `@Body()` for payload.
+
+## NestJS Structure
+
+- One controller per resource; keep controllers thin
+- Business logic lives in services
+- DTOs + `class-validator` + `@Type()` for every POST / PATCH / PUT **and** for query params
+- Enable `ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true })` in `main.ts`
+
+## Status Codes
+
+- 200 success · 201 created · 204 delete (no content)
+- 400 bad request (invalid / null required fields, unknown public FK)
+- 403 forbidden (private FK owned by another user, e.g. posting a session on someone else's contract)
+- 404 not found (missing, **or** private resource that is not the caller's)
+
+Ownership, public vs private catalogs: `saas-api.mdc`.
+
+## Refactoring Checklist
+
+When touching endpoints: fix POST misuse, move IDs body → URL, replace action routes with resources.
+
+**Golden rule:** endpoint describes an action → wrong; describes a resource → correct.

@@ -1,0 +1,35 @@
+---
+alwaysApply: true
+---
+# Database Interactions
+
+When reading or writing data:
+
+1. **Use Prisma** — never raw SQL or another ORM unless explicitly required.
+2. **Wrap in try/catch** — every Prisma call must be inside try/catch; handle or rethrow with context.
+
+```typescript
+// ✅ GOOD
+async findById(id: string) {
+  try {
+    return await this.prisma.user.findUnique({ where: { id } });
+  } catch (error) {
+    throw new InternalServerErrorException('Failed to fetch user', { cause: error });
+  }
+}
+```
+
+Inject `PrismaService`; do not instantiate Prisma clients directly in feature code.
+
+## Ownership (no duplicate FKs)
+
+Private queries must include the existing owner field (`teacherId` or `User.id`). Do **not** add a second user FK when one already exists (`Contract.teacherId`).
+
+```typescript
+// ✅ GOOD — scope with the existing owner
+await this.prisma.contract.findUnique({ where: { id, teacherId: userId } });
+
+// ❌ BAD — extra fk_user_id on Contract, or unscoped findUnique({ where: { id } })
+```
+
+Public catalogs (`Class`, `Institution`, `PricingMode`, `Status`) have no owner. See `saas-api.mdc`.
